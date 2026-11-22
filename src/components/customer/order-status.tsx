@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { createPublicClient } from "@/lib/supabase/public";
 import { rupiah, storageUrl } from "@/lib/format";
 import { rpcMessage } from "@/lib/rpc-errors";
+import { isPaymentMethod, type PaymentMethod } from "@/lib/payment-methods";
 import { btn } from "./ui";
 
 type OrderView = {
@@ -21,6 +22,7 @@ type OrderView = {
   cancel_reason: string | null;
   last_rejection_reason: string | null;
   receipt_number: string | null;
+  payment: { status: string; method: string; amount: number } | null;
   items: { product_id: string; name: string; unit_price: number; qty: number; line_total: number }[];
 };
 
@@ -44,6 +46,12 @@ function describe(o: OrderView): { title: string; detail?: string; tone: Tone } 
       title: "Waktu pembayaran habis",
       detail: "Stok sudah dilepas. Silakan buat pesanan baru. Jika kamu terlanjur membayar, hubungi toko dan sebutkan nomor pesanan ini.",
       tone: "bad",
+    };
+  if (o.payment?.method === "cash")
+    return {
+      title: "Menunggu pembayaran tunai di toko",
+      detail: "Bayar di kasir dan sebutkan nomor pesananmu. Petugas akan mengonfirmasi setelah uangnya diterima.",
+      tone: "wait",
     };
   return { title: "Menunggu pembayaran", tone: "wait" };
 }
@@ -73,7 +81,7 @@ function mmss(ms: number) {
 export function OrderStatus({ orderNumber, token }: { orderNumber: string; token: string }) {
   const [order, setOrder] = useState<OrderView | null>(null);
   const [state, setState] = useState<"loading" | "ready" | "notfound" | "error">("loading");
-  const [busy, setBusy] = useState<"cancel" | "claim" | null>(null);
+  const [busy, setBusy] = useState<"cancel" | "claim" | "method" | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [qris, setQris] = useState<string | null>(null);
@@ -120,10 +128,12 @@ export function OrderStatus({ orderNumber, token }: { orderNumber: string; token
 
   const waiting = !!order && order.status === "open" && order.payment_status === "pending";
   const now = useNow(waiting);
+  const rawMethod = order?.payment?.method;
+  const method: PaymentMethod = isPaymentMethod(rawMethod) ? rawMethod : "qris_static";
 
   // Gambar QRIS toko (pengaturan publik) dimuat sekali saat dibutuhkan.
   useEffect(() => {
-    if (!waiting || qrisRequested.current) return;
+    if (!waiting || method !== "qris_static" || qrisRequested.current) return;
     qrisRequested.current = true;
     void createPublicClient()
       .from("store_settings")
@@ -135,7 +145,21 @@ export function OrderStatus({ orderNumber, token }: { orderNumber: string; token
         setQris(typeof v === "string" && v ? storageUrl("store-assets", v) : null);
         setQrisLoaded(true);
       });
-  }, [waiting]);
+  }, [waiting, method]);
+
+  async function chooseMethod(next: PaymentMethod) {
+    if (next === method || busy !== null) return;
+    setBusy("method");
+    setMsg(null);
+    const { error } = await createPublicClient().rpc("choose_payment_method", {
+      p_order_number: orderNumber,
+      p_token: token,
+      p_method: next,
+    });
+    if (error) setMsg(rpcMessage(error));
+    await load();
+    setBusy(null);
+  }
 
   async function cancel() {
     if (!confirm("Batalkan pesanan ini?")) return;
@@ -209,44 +233,88 @@ export function OrderStatus({ orderNumber, token }: { orderNumber: string; token
 
       {waiting ? (
         <section className="space-y-4 rounded-xl border border-stone-200 bg-white p-4">
-          <h2 className="text-base font-semibold">Bayar dengan QRIS</h2>
+          <h2 className="text-base font-semibold">Pembayaran</h2>
           {order.last_rejection_reason ? (
             <p role="alert" className="rounded-lg bg-red-50 p-3 text-sm text-red-700">
               Pembayaran sebelumnya ditolak petugas: {order.last_rejection_reason}. Periksa lalu coba lagi.
             </p>
           ) : null}
 
-          {qris ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={qris} alt="QRIS Toko Noni" className="mx-auto w-full max-w-xs rounded-lg border border-stone-200" />
-          ) : qrisLoaded ? (
-            <p className="rounded-lg bg-amber-50 p-3 text-sm text-amber-900">
-              QRIS toko belum tersedia di halaman ini. Hubungi toko dan sebutkan nomor pesananmu.
-            </p>
-          ) : null}
-
-          <div className="rounded-lg bg-stone-50 p-3 text-center">
-            <p className="text-xs text-stone-500">Nominal yang harus dibayar (tepat)</p>
-            <p className="text-2xl font-bold text-emerald-800">{rupiah(order.total)}</p>
-            <button type="button" onClick={copyAmount} className="mt-1 min-h-11 px-3 text-sm font-medium text-emerald-800 underline">
-              {copied ? "Tersalin" : "Salin nominal"}
-            </button>
+          <div role="radiogroup" aria-label="Cara pembayaran" className="grid grid-cols-2 gap-2">
+            {([
+              ["qris_static", "QRIS"],
+              ["cash", "Tunai di toko"],
+            ] as const).map(([value, label]) => (
+              <button
+                key={value}
+                type="button"
+                role="radio"
+                aria-checked={method === value}
+                disabled={busy !== null}
+                onClick={() => void chooseMethod(value)}
+                className={`min-h-11 rounded-lg border px-3 text-sm font-semibold transition disabled:opacity-60 ${
+                  method === value
+                    ? "border-emerald-700 bg-emerald-700 text-white"
+                    : "border-stone-300 bg-white text-stone-800 hover:bg-stone-50"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
           </div>
 
-          <ol className="list-decimal space-y-1 pl-5 text-sm text-stone-700">
-            <li>Buka aplikasi bank atau e-wallet, pindai QRIS di atas.</li>
-            <li>Masukkan nominal <strong>tepat</strong> {rupiah(order.total)}.</li>
-            <li>Setelah berhasil, tekan tombol di bawah.</li>
-          </ol>
-          <p className="text-xs text-stone-500">
-            Pesananmu baru diproses setelah petugas memeriksa mutasi toko. Tombol di bawah hanya memberi tahu toko
-            bahwa kamu sudah membayar.
-          </p>
+          <div className="rounded-lg bg-stone-50 p-3 text-center">
+            <p className="text-xs text-stone-500">
+              {method === "cash" ? "Total yang dibayar tunai" : "Nominal yang harus dibayar (tepat)"}
+            </p>
+            <p className="text-2xl font-bold text-emerald-800">{rupiah(order.total)}</p>
+            {method === "qris_static" ? (
+              <button type="button" onClick={copyAmount} className="mt-1 min-h-11 px-3 text-sm font-medium text-emerald-800 underline">
+                {copied ? "Tersalin" : "Salin nominal"}
+              </button>
+            ) : null}
+          </div>
 
-          {msg ? <p role="alert" className="text-sm text-red-600">{msg}</p> : null}
-          <button type="button" onClick={claim} disabled={busy !== null} className={`${btn.primary} w-full`}>
-            {busy === "claim" ? "Mengirim…" : "Saya sudah bayar"}
-          </button>
+          {method === "cash" ? (
+            <>
+              <ol className="list-decimal space-y-1 pl-5 text-sm text-stone-700">
+                <li>Datang ke kasir Toko Noni.</li>
+                <li>Sebutkan nomor pesanan <strong>{order.order_number}</strong>.</li>
+                <li>Bayar tunai {rupiah(order.total)}. Petugas akan mengonfirmasi dan pesananmu disiapkan.</li>
+              </ol>
+              <p className="text-xs text-stone-500">
+                Tidak perlu menekan tombol apa pun. Stok dipesankan untukmu hanya selama waktu pembayaran di atas; kalau
+                waktunya habis, buat pesanan baru.
+              </p>
+              {msg ? <p role="alert" className="text-sm text-red-600">{msg}</p> : null}
+            </>
+          ) : (
+            <>
+              {qris ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={qris} alt="QRIS Toko Noni" className="mx-auto w-full max-w-xs rounded-lg border border-stone-200" />
+              ) : qrisLoaded ? (
+                <p className="rounded-lg bg-amber-50 p-3 text-sm text-amber-900">
+                  QRIS toko belum tersedia di halaman ini. Hubungi toko dan sebutkan nomor pesananmu.
+                </p>
+              ) : null}
+
+              <ol className="list-decimal space-y-1 pl-5 text-sm text-stone-700">
+                <li>Buka aplikasi bank atau e-wallet, pindai QRIS di atas.</li>
+                <li>Masukkan nominal <strong>tepat</strong> {rupiah(order.total)}.</li>
+                <li>Setelah berhasil, tekan tombol di bawah.</li>
+              </ol>
+              <p className="text-xs text-stone-500">
+                Pesananmu baru diproses setelah petugas memeriksa mutasi toko. Tombol di bawah hanya memberi tahu toko
+                bahwa kamu sudah membayar.
+              </p>
+
+              {msg ? <p role="alert" className="text-sm text-red-600">{msg}</p> : null}
+              <button type="button" onClick={claim} disabled={busy !== null} className={`${btn.primary} w-full`}>
+                {busy === "claim" ? "Mengirim…" : "Saya sudah bayar"}
+              </button>
+            </>
+          )}
         </section>
       ) : null}
 

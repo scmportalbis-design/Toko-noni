@@ -5,6 +5,7 @@ import { isUuid, rupiah } from "@/lib/format";
 import { formatDateTime } from "@/lib/dates";
 import { fulfillmentLabel, orderStatusLabel, paymentLabel } from "@/lib/labels";
 import { Badge, orderTone, paymentTone } from "@/components/admin/badge";
+import { methodLabel, pickCurrentPayment } from "@/lib/payment-methods";
 import { buttonClass } from "@/components/admin/form-ui";
 import { CancelOrderForm, FulfillmentButton } from "../order-actions";
 
@@ -15,13 +16,13 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
   const [orderRes, itemsRes, paysRes, receiptRes] = await Promise.all([
     supabase.from("orders").select("*").eq("id", id).maybeSingle(),
     supabase.from("order_items").select("id, product_name, unit_price, qty, line_total").eq("order_id", id).order("product_name"),
-    supabase.from("payments").select("id, amount, status, provider_reference, claimed_at, verified_at, rejected_reason, created_at").eq("order_id", id).order("created_at"),
+    supabase.from("payments").select("id, amount, method, status, provider_reference, claimed_at, verified_at, rejected_reason, created_at").eq("order_id", id).order("created_at"),
     supabase.from("receipts").select("receipt_number").eq("order_id", id).maybeSingle(),
   ]);
   const o = orderRes.data as Record<string, any> | null; // eslint-disable-line @typescript-eslint/no-explicit-any
   if (!o) notFound();
   const items = (itemsRes.data ?? []) as { id: string; product_name: string; unit_price: number; qty: number; line_total: number }[];
-  const pays = (paysRes.data ?? []) as { id: string; amount: number; status: string; provider_reference: string | null; claimed_at: string | null; verified_at: string | null; rejected_reason: string | null; created_at: string }[];
+  const pays = (paysRes.data ?? []) as { id: string; amount: number; method: string; status: string; provider_reference: string | null; claimed_at: string | null; verified_at: string | null; rejected_reason: string | null; created_at: string }[];
   const payIds = pays.map((p) => p.id);
   const histRes = payIds.length
     ? await supabase.from("payment_status_history").select("id, payment_id, from_status, to_status, note, changed_at").in("payment_id", payIds).order("changed_at")
@@ -29,6 +30,7 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
   const history = (histRes.data ?? []) as { id: number; from_status: string | null; to_status: string; note: string | null; changed_at: string }[];
 
   const verified = o.payment_status === "verified";
+  const currentPay = pickCurrentPayment(pays);
   const canCancel = o.status === "open" && !verified;
 
   return (
@@ -47,6 +49,7 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
         <div className="flex flex-wrap gap-1.5">
           <Badge tone={orderTone(o.status)}>{orderStatusLabel[o.status]}</Badge>
           <Badge tone={paymentTone(o.payment_status)}>{paymentLabel[o.payment_status]}</Badge>
+          <Badge tone="muted">{methodLabel(currentPay?.method)}</Badge>
           {verified ? <Badge tone="wait">{fulfillmentLabel[o.fulfillment_status]}</Badge> : null}
         </div>
         {o.note ? <p className="text-sm text-slate-600">Catatan pelanggan: {o.note}</p> : null}
@@ -78,6 +81,9 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
         <Link href={`/admin/orders/${id}/receipt`} className={buttonClass.secondary}>
           {receiptRes.data ? "Lihat / cetak struk" : verified ? "Struk & bukti pesanan" : "Bukti pesanan (belum bayar)"}
         </Link>
+        {(verified && receiptRes.data) || !verified ? (
+          <a href={`/admin/orders/${id}/receipt/download`} download className={buttonClass.secondary}>Unduh struk (PDF)</a>
+        ) : null}
         {canCancel ? <details><summary className="min-h-11 cursor-pointer py-2.5 text-sm text-red-700">Batalkan pesanan</summary><div className="pt-2"><CancelOrderForm orderId={id} /></div></details> : null}
         {verified ? <p className="text-xs text-slate-500">Pesanan yang sudah dibayar tidak bisa dibatalkan di sini. Aturan refund belum ditetapkan.</p> : null}
       </section>
@@ -87,7 +93,7 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
         <ul className="space-y-1 text-sm">
           {pays.map((p) => (
             <li key={p.id}>
-              {rupiah(p.amount)} · <Badge tone={paymentTone(p.status)}>{paymentLabel[p.status]}</Badge>
+              {rupiah(p.amount)} · {methodLabel(p.method)} · <Badge tone={paymentTone(p.status)}>{paymentLabel[p.status]}</Badge>
               {p.provider_reference ? <span className="text-slate-500"> · ref {p.provider_reference}</span> : null}
               {p.rejected_reason ? <span className="text-red-700"> · {p.rejected_reason}</span> : null}
             </li>

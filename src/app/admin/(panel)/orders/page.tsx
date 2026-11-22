@@ -5,11 +5,13 @@ import { rupiah } from "@/lib/format";
 import { formatDateTime } from "@/lib/dates";
 import { fulfillmentLabel, orderStatusLabel, paymentLabel } from "@/lib/labels";
 import { Badge, orderTone, paymentTone } from "@/components/admin/badge";
+import { methodLabel, pickCurrentPayment } from "@/lib/payment-methods";
 
 type SP = Promise<{ tab?: string; q?: string }>;
 type Row = {
   id: string; order_number: string; customer_name: string; customer_phone: string; total: number;
   status: string; payment_status: string; fulfillment_status: string; created_at: string;
+  payments: { method: string; status: string; created_at: string }[] | null;
 };
 
 const TABS = [
@@ -35,7 +37,7 @@ async function List({ searchParams }: { searchParams: SP }) {
   const supabase = await createClient();
   let query = supabase
     .from("orders")
-    .select("id, order_number, customer_name, customer_phone, total, status, payment_status, fulfillment_status, created_at")
+    .select("id, order_number, customer_name, customer_phone, total, status, payment_status, fulfillment_status, created_at, payments(method, status, created_at)")
     .order("created_at", { ascending: false })
     .limit(60);
   if (tab === "prepare") query = query.eq("status", "open").eq("payment_status", "verified");
@@ -72,7 +74,9 @@ async function List({ searchParams }: { searchParams: SP }) {
         <p className="rounded-xl border border-dashed border-slate-300 p-6 text-center text-sm text-slate-500">Tidak ada pesanan.</p>
       ) : (
         <ul className="space-y-2">
-          {orders.map((o) => (
+          {orders.map((o) => {
+            const pay = pickCurrentPayment(o.payments);
+            return (
             <li key={o.id}>
               <Link href={`/admin/orders/${o.id}`} className="block space-y-1.5 rounded-xl border border-slate-200 bg-white p-4 hover:bg-slate-50">
                 <div className="flex items-start justify-between gap-3">
@@ -83,12 +87,14 @@ async function List({ searchParams }: { searchParams: SP }) {
                 <div className="flex flex-wrap items-center gap-1.5">
                   <Badge tone={orderTone(o.status)}>{orderStatusLabel[o.status]}</Badge>
                   <Badge tone={paymentTone(o.payment_status)}>{paymentLabel[o.payment_status]}</Badge>
+                  <Badge tone={pay?.method === "cash" ? "wait" : "muted"}>{methodLabel(pay?.method)}</Badge>
                   {o.payment_status === "verified" && o.status === "open" ? <Badge tone="wait">{fulfillmentLabel[o.fulfillment_status]}</Badge> : null}
                   <span className="text-xs text-slate-500">{formatDateTime(o.created_at)}</span>
                 </div>
               </Link>
             </li>
-          ))}
+            );
+          })}
         </ul>
       )}
     </div>

@@ -18,6 +18,7 @@ const MESSAGES: Record<string, string> = {
   PESANAN_TIDAK_AKTIF: "Pesanan ini sudah tidak aktif.",
   PESANAN_DIBATALKAN: "Pesanan ini sudah dibatalkan, pembayarannya tidak bisa diverifikasi.",
   PEMBAYARAN_TIDAK_DITEMUKAN: "Pembayaran tidak ditemukan.",
+  METODE_PEMBAYARAN_TIDAK_VALID: "Metode pembayaran tidak valid.",
   STATUS_PEMBAYARAN_TIDAK_VALID: "Status pembayaran ini sudah berubah. Muat ulang halaman.",
   NOMINAL_TIDAK_SESUAI: "Nominal tidak sama dengan tagihan",
   REFERENSI_WAJIB: "Nomor referensi mutasi wajib diisi.",
