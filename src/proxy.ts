@@ -7,8 +7,10 @@ export async function proxy(request: NextRequest) {
   const { response, user } = await updateSession(request);
   const { pathname } = request.nextUrl;
   const isLogin = pathname === "/admin/login";
+  // Halaman pemulihan password harus bisa dibuka tanpa login.
+  const isPublic = isLogin || pathname === "/admin/lupa-password" || pathname === "/admin/reset-password";
 
-  if (!user && !isLogin) {
+  if (!user && !isPublic) {
     const url = request.nextUrl.clone();
     url.pathname = "/admin/login";
     url.search = "";

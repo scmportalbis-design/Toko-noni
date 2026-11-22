@@ -30,6 +30,9 @@ const MESSAGES: Record<string, string> = {
   PEMBELIAN_BUKAN_DRAF: "Hanya pembelian berstatus draf yang bisa diterima.",
   PEMBELIAN_KOSONG: "Pembelian belum berisi barang.",
   PEMBELIAN_TIDAK_BISA_DIUBAH: "Pembelian ini sudah tidak bisa diubah.",
+  PENGGUNA_TIDAK_DITEMUKAN: "Pengguna tidak ditemukan.",
+  TIDAK_BISA_RESET_AKUN_SENDIRI: "Untuk akunmu sendiri, gunakan \"Lupa password\" di halaman masuk.",
+  PASSWORD_TIDAK_VALID: "Password tidak valid (minimal 8 karakter).",
   RENTANG_TANGGAL_TIDAK_VALID: "Rentang tanggal tidak valid (maksimal 366 hari).",
 };
 

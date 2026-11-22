@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getStaff } from "@/lib/auth";
 import { Badge } from "@/components/admin/badge";
 import { StaffForm } from "./staff-form";
+import { ResetPasswordForm } from "./reset-password-form";
 
 type P = { id: string; full_name: string; role: string; is_active: boolean };
 
@@ -32,7 +33,10 @@ export default async function UsersPage() {
                   <span className="font-medium">{p.full_name}</span>
                   <span className="flex gap-1.5"><Badge>{p.role === "owner" ? "Pemilik" : "Kasir"}</Badge><Badge tone={p.is_active ? "ok" : "bad"}>{p.is_active ? "Aktif" : "Nonaktif"}</Badge></span>
                 </summary>
-                <div className="border-t border-slate-100 p-4"><StaffForm id={p.id} role={p.role} isActive={p.is_active} /></div>
+                <div className="space-y-5 border-t border-slate-100 p-4">
+                  <StaffForm id={p.id} role={p.role} isActive={p.is_active} />
+                  <div className="border-t border-slate-100 pt-4"><ResetPasswordForm userId={p.id} name={p.full_name} /></div>
+                </div>
               </details>
             )}
           </li>
