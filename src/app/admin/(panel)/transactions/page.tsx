@@ -3,7 +3,7 @@ import { Suspense } from "react";
 import { createClient } from "@/lib/supabase/server";
 import { one, rupiah } from "@/lib/format";
 import { addDays, formatDateTime, isYmd, startOfDayISO, todayJakarta } from "@/lib/dates";
-import { inputClass, buttonClass } from "@/components/admin/form-ui";
+import { inputClass, buttonClass } from "@/lib/admin-styles";
 
 type SP = Promise<{ from?: string; to?: string }>;
 type Row = {

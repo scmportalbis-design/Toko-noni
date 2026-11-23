@@ -8,7 +8,7 @@ export type ReceiptPdfData = {
   receiptNumber: string | null;
   dateText: string;
   customerName: string;
-  paymentMethod: string; // mis. "Tunai"
+  paymentMethod: string; // mis. "QRIS"
   items: { name: string; qty: number; unitPrice: number; lineTotal: number }[];
   discount: number;
   totalLabel: string; // "Total dibayar" | "Total tagihan"

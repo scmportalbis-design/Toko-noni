@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getStaff } from "@/lib/auth";
 import { one, rupiah } from "@/lib/format";
 import { Badge } from "@/components/admin/badge";
-import { buttonClass } from "@/components/admin/form-ui";
+import { buttonClass } from "@/lib/admin-styles";
 
 type Row = {
   id: string; status: string; purchase_date: string;

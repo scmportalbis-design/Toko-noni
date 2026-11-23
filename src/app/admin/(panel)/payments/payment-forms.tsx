@@ -1,11 +1,9 @@
 "use client";
 
-import { useActionState, useState } from "react";
-import { rejectPayment, verifyCashPayment, verifyPayment } from "./actions";
+import { useActionState } from "react";
+import { rejectPayment, verifyPayment } from "./actions";
 import { Field, FormMessage, SubmitButton, inputClass } from "@/components/admin/form-ui";
 import { rupiah } from "@/lib/format";
-import { cashChange } from "@/lib/payment-methods";
-import { toRupiah } from "@/lib/form-data";
 
 export function VerifyForm({ paymentId, amount, expired }: { paymentId: string; amount: number; expired: boolean }) {
   const [state, action] = useActionState(verifyPayment, null);
@@ -58,46 +56,6 @@ export function RejectForm({ paymentId }: { paymentId: string }) {
       </Field>
       <FormMessage state={state} />
       <SubmitButton variant="danger" pendingText="Menolak…">Tolak pembayaran</SubmitButton>
-    </form>
-  );
-}
-
-export function CashVerifyForm({ paymentId, amount, expired }: { paymentId: string; amount: number; expired: boolean }) {
-  const [state, action] = useActionState(verifyCashPayment, null);
-  const [received, setReceived] = useState(state?.values?.cash_received ?? "");
-  const e = state?.errors ?? {};
-  const parsed = toRupiah(received.trim() === "" ? null : received);
-  const change = parsed === null ? null : cashChange(parsed, amount);
-  return (
-    <form action={action} className="space-y-3">
-      <input type="hidden" name="payment_id" value={paymentId} />
-      {expired ? (
-        <p className="rounded-lg bg-amber-50 p-2 text-sm text-amber-900">
-          Pesanan ini sudah kedaluwarsa. Verifikasi akan mencoba memesan ulang stok; bila stok habis, verifikasi ditolak.
-        </p>
-      ) : null}
-      <p className="rounded-lg bg-slate-50 p-3 text-center text-sm">
-        Tagihan tunai <span className="block text-xl font-bold text-emerald-800">{rupiah(amount)}</span>
-      </p>
-      <Field
-        label="Uang diterima (Rp)"
-        htmlFor={`cash-${paymentId}`}
-        error={e.cash_received}
-        hint="Hitung uang di tangan kasir. Boleh lebih besar dari tagihan (ada kembalian)."
-      >
-        <input id={`cash-${paymentId}`} name="cash_received" inputMode="numeric" required value={received}
-          onChange={(ev) => setReceived(ev.target.value)} className={inputClass} />
-      </Field>
-      {parsed !== null ? (
-        <p className={`text-sm font-medium ${change === null ? "text-red-600" : "text-emerald-800"}`}>
-          {change === null ? "Uang kurang dari tagihan." : `Kembalian: ${rupiah(change)}`}
-        </p>
-      ) : null}
-      <Field label="Catatan" htmlFor={`cnote-${paymentId}`} hint="Opsional.">
-        <input id={`cnote-${paymentId}`} name="note" maxLength={150} defaultValue={state?.values?.note ?? ""} className={inputClass} />
-      </Field>
-      <FormMessage state={state} />
-      <SubmitButton pendingText="Memverifikasi…">Uang tunai sudah diterima — verifikasi</SubmitButton>
     </form>
   );
 }

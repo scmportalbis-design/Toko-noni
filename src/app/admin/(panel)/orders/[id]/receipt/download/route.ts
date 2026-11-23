@@ -2,7 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getStaff } from "@/lib/auth";
 import { isUuid } from "@/lib/format";
 import { formatDateTime } from "@/lib/dates";
-import { methodLabel, pickCurrentPayment } from "@/lib/payment-methods";
+import { pickCurrentPayment } from "@/lib/payments";
 import { buildReceiptPdf } from "@/lib/receipt-pdf";
 
 // Unduh struk / bukti pesanan sebagai PDF. Hanya staf; data dibaca lewat RLS seperti halaman struk.
@@ -16,7 +16,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     supabase.from("orders").select("id, order_number, customer_name, total, discount, payment_status, created_at").eq("id", id).maybeSingle(),
     supabase.from("order_items").select("id, product_name, unit_price, qty, line_total").eq("order_id", id).order("product_name"),
     supabase.from("receipts").select("receipt_number").eq("order_id", id).maybeSingle(),
-    supabase.from("payments").select("method, status, verified_at, created_at").eq("order_id", id),
+    supabase.from("payments").select("status, verified_at, created_at").eq("order_id", id),
     supabase.from("store_settings").select("value").eq("key", "store_name").maybeSingle(),
   ]);
   const o = orderRes.data;
@@ -29,7 +29,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     return new Response("Terbitkan struk lunas dulu di halaman struk, lalu unduh.", { status: 409 });
   }
   const isPaidReceipt = verified && !!receipt;
-  const pay = pickCurrentPayment((paysRes.data ?? []) as { method: string; status: string; verified_at: string | null; created_at: string }[]);
+  const pay = pickCurrentPayment((paysRes.data ?? []) as { status: string; verified_at: string | null; created_at: string }[]);
   const storeName = typeof nameRes.data?.value === "string" ? nameRes.data.value : "Toko Noni";
   const items = (itemsRes.data ?? []) as { product_name: string; unit_price: number; qty: number; line_total: number }[];
 
@@ -40,7 +40,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     receiptNumber: receipt?.receipt_number ?? null,
     dateText: formatDateTime(isPaidReceipt && pay?.verified_at ? pay.verified_at : o.created_at),
     customerName: o.customer_name,
-    paymentMethod: methodLabel(pay?.method),
+    paymentMethod: "QRIS",
     items: items.map((i) => ({ name: i.product_name, qty: i.qty, unitPrice: i.unit_price, lineTotal: i.line_total })),
     discount: o.discount,
     totalLabel: isPaidReceipt ? "Total dibayar" : "Total tagihan",

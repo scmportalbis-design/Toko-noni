@@ -8,7 +8,7 @@ const base: ReceiptPdfData = {
   receiptNumber: "STR-261122-00001",
   dateText: "22 Nov 2026 19.30",
   customerName: "Budi (Pelanggan) \\ Test",
-  paymentMethod: "Tunai",
+  paymentMethod: "QRIS",
   items: [
     { name: "Kopi Susu Café “Spesial” dengan nama produk yang sangat panjang sekali", qty: 2, unitPrice: 15000, lineTotal: 30000 },
     { name: "Roti", qty: 1, unitPrice: 12500, lineTotal: 12500 },
@@ -42,7 +42,7 @@ describe("receipt-pdf", () => {
 
   it("berisi metode pembayaran, total, dan diskon", () => {
     const text = receiptLines(base).join("\n");
-    expect(text).toContain("Pembayaran: Tunai");
+    expect(text).toContain("Pembayaran: QRIS");
     expect(text).toContain("Total dibayar");
     expect(text).toContain("Rp 40.000");
     expect(text).toContain("Diskon");

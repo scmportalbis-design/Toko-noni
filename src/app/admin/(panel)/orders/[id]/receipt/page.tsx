@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { isUuid, rupiah } from "@/lib/format";
 import { formatDateTime } from "@/lib/dates";
-import { methodLabel, pickCurrentPayment } from "@/lib/payment-methods";
+import { pickCurrentPayment } from "@/lib/payments";
 import { IssueReceiptButton } from "../../order-actions";
 import { PrintButton } from "./print-button";
 
@@ -15,7 +15,7 @@ export default async function ReceiptPage({ params }: { params: Promise<{ id: st
     supabase.from("orders").select("id, order_number, customer_name, total, discount, subtotal, payment_status, created_at").eq("id", id).maybeSingle(),
     supabase.from("order_items").select("id, product_name, unit_price, qty, line_total").eq("order_id", id).order("product_name"),
     supabase.from("receipts").select("receipt_number, issued_at").eq("order_id", id).maybeSingle(),
-    supabase.from("payments").select("method, status, verified_at, created_at").eq("order_id", id),
+    supabase.from("payments").select("status, verified_at, created_at").eq("order_id", id),
     supabase.from("store_settings").select("value").eq("key", "store_name").maybeSingle(),
   ]);
   const o = orderRes.data;
@@ -25,7 +25,7 @@ export default async function ReceiptPage({ params }: { params: Promise<{ id: st
   const receipt = receiptRes.data;
   const storeName = typeof nameRes.data?.value === "string" ? nameRes.data.value : "Toko Noni";
   const isPaidReceipt = verified && !!receipt;
-  const pay = pickCurrentPayment((payRes.data ?? []) as { method: string; status: string; verified_at: string | null; created_at: string }[]);
+  const pay = pickCurrentPayment((payRes.data ?? []) as { status: string; verified_at: string | null; created_at: string }[]);
 
   return (
     <div className="space-y-4">
@@ -57,7 +57,7 @@ export default async function ReceiptPage({ params }: { params: Promise<{ id: st
             {receipt ? <p>Struk: {receipt.receipt_number}</p> : null}
             <p>Tanggal: {formatDateTime(isPaidReceipt && pay?.verified_at ? pay.verified_at : o.created_at)}</p>
             <p>Pelanggan: {o.customer_name}</p>
-            <p>Pembayaran: {methodLabel(pay?.method)}</p>
+            <p>Pembayaran: QRIS</p>
           </div>
           <ul className="space-y-1">
             {items.map((i) => (
