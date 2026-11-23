@@ -9,5 +9,5 @@ export const fulfillmentLabel: Record<string, string> = {
   pending: "Belum disiapkan", preparing: "Sedang disiapkan", ready: "Siap diambil", picked_up: "Sudah diambil",
 };
 export const movementLabel: Record<string, string> = {
-  purchase_receipt: "Pembelian", sale: "Penjualan", adjustment: "Koreksi", return: "Retur",
+  purchase_receipt: "Pembelian", sale: "Penjualan", adjustment: "Koreksi", return: "Retur", write_off: "Penyesuaian",
 };

@@ -35,10 +35,14 @@ describe("catalog schemas", () => {
 });
 
 describe("purchaseSchema", () => {
-  const base = { supplier_id: null, purchase_date: "2026-10-24", note: null, items: [{ product_id: uuid, qty: 5, unit_cost: 1000 }] };
+  const base = { supplier_id: null, purchase_date: "2026-10-24", note: null, items: [{ product_id: uuid, qty: 5, unit_cost: 1000, expiry_date: "2027-03-01" }] };
   it("valid", () => expect(purchaseSchema.safeParse(base).success).toBe(true));
-  it("menolak produk ganda dan daftar kosong", () => {
+  it("menolak baris kembar, tanggal kedaluwarsa kosong, dan daftar kosong", () => {
     expect(purchaseSchema.safeParse({ ...base, items: [base.items[0], base.items[0]] }).success).toBe(false);
+    expect(purchaseSchema.safeParse({ ...base, items: [{ ...base.items[0], expiry_date: "" }] }).success).toBe(false);
+    expect(purchaseSchema.safeParse({ ...base, items: [{ product_id: uuid, qty: 5, unit_cost: 1000 }] }).success).toBe(false);
+    // produk sama dengan tanggal kedaluwarsa berbeda = dua batch, boleh
+    expect(purchaseSchema.safeParse({ ...base, items: [base.items[0], { ...base.items[0], expiry_date: "2027-06-01" }] }).success).toBe(true);
     expect(purchaseSchema.safeParse({ ...base, items: [] }).success).toBe(false);
     expect(purchaseSchema.safeParse({ ...base, items: [base.items[0], { ...base.items[0], product_id: uuid2 }] }).success).toBe(true);
   });

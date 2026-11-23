@@ -4,7 +4,7 @@ import { useActionState } from "react";
 import { adjustStock } from "../actions";
 import { Field, FormMessage, SubmitButton, inputClass } from "@/components/admin/form-ui";
 
-export function StockAdjustForm({ productId }: { productId: string }) {
+export function StockAdjustForm({ productId, today }: { productId: string; today: string }) {
   const [state, action] = useActionState(adjustStock, null);
   const e = state?.errors ?? {};
   return (
@@ -14,7 +14,7 @@ export function StockAdjustForm({ productId }: { productId: string }) {
         label="Perubahan stok"
         htmlFor="delta"
         error={e.delta}
-        hint="Positif menambah, negatif mengurangi. Contoh: 24 atau -2."
+        hint="Positif menambah, negatif mengurangi (keluar mengikuti FIFO). Contoh: 24 atau -2."
       >
         <input
           id="delta"
@@ -22,6 +22,21 @@ export function StockAdjustForm({ productId }: { productId: string }) {
           inputMode="numeric"
           required
           defaultValue={state?.ok ? "" : (state?.values?.delta ?? "")}
+          className={inputClass}
+        />
+      </Field>
+      <Field
+        label="Tanggal kedaluwarsa batch baru"
+        htmlFor="expiry_date"
+        error={e.expiry_date}
+        hint="WAJIB bila menambah stok (angka positif): stok masuk menjadi batch baru. Abaikan bila mengurangi stok."
+      >
+        <input
+          id="expiry_date"
+          name="expiry_date"
+          type="date"
+          min={today}
+          defaultValue={state?.ok ? "" : (state?.values?.expiry_date ?? "")}
           className={inputClass}
         />
       </Field>

@@ -18,9 +18,15 @@ export const purchaseSchema = z.object({
         product_id: z.string().uuid(),
         qty: z.number().int().min(1).max(100000),
         unit_cost: z.number().int().min(0).max(1_000_000_000),
+        // Setiap baris = satu batch. Tanggal kedaluwarsa WAJIB (hanya dilihat pemilik).
+        expiry_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Tanggal kedaluwarsa wajib diisi"),
+        batch_code: z.string().trim().max(60, "Maksimal 60 karakter").nullable().optional(),
       }),
     )
     .min(1, "Tambahkan minimal satu barang")
     .max(100)
-    .refine((a) => new Set(a.map((i) => i.product_id)).size === a.length, { message: "Ada produk yang dipilih dua kali" }),
+    .refine(
+      (a) => new Set(a.map((i) => `${i.product_id}|${i.expiry_date}|${i.batch_code ?? ""}`)).size === a.length,
+      { message: "Ada baris yang sama persis (produk, tanggal kedaluwarsa, dan kode batch)" },
+    ),
 });

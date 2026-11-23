@@ -7,6 +7,7 @@ import { getStaff, OWNER_ONLY_MESSAGE } from "@/lib/auth";
 import { insertWithUniqueSlug } from "@/lib/slug";
 import { bool, snapshot, str, toInt } from "@/lib/form-data";
 import { isUuid } from "@/lib/format";
+import { isYmd, todayJakarta } from "@/lib/dates";
 import { rpcMessage } from "@/lib/rpc-errors";
 import { fieldErrors, productSchema } from "@/lib/validators/catalog";
 import type { ActionState } from "@/lib/action-state";
@@ -94,7 +95,7 @@ export async function adjustStock(_prev: ActionState, fd: FormData): Promise<Act
   const staff = await getStaff();
   if (staff?.role !== "owner") return { ok: false, message: OWNER_ONLY_MESSAGE };
 
-  const values = snapshot(fd, ["delta", "reason"]);
+  const values = snapshot(fd, ["delta", "reason", "expiry_date"]);
   const id = str(fd, "product_id");
   if (!id || !isUuid(id)) return { ok: false, message: "Produk tidak valid.", values };
 
@@ -108,16 +109,29 @@ export async function adjustStock(_prev: ActionState, fd: FormData): Promise<Act
     return { ok: false, errors: { reason: "Alasan wajib diisi (minimal 3 karakter)." }, values };
   }
 
+  const expiry = str(fd, "expiry_date");
+  if (delta > 0) {
+    if (!isYmd(expiry)) {
+      return { ok: false, errors: { expiry_date: "Tanggal kedaluwarsa wajib diisi untuk penambahan stok." }, values };
+    }
+    if (expiry < todayJakarta()) {
+      return { ok: false, errors: { expiry_date: "Tanggal kedaluwarsa tidak boleh sudah lewat." }, values };
+    }
+  }
+
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("adjust_stock", {
     p_product_id: id,
     p_delta: delta,
     p_reason: reason,
+    p_expiry_date: delta > 0 ? expiry : null,
   });
   if (error) return { ok: false, message: rpcMessage(error), values };
 
   revalidatePath(`/admin/products/${id}`);
   revalidatePath("/admin/products");
+  revalidatePath("/admin/stock");
+  revalidatePath("/admin/batches");
   const onHand = (data as { on_hand?: number } | null)?.on_hand;
   return { ok: true, message: `Stok tersimpan. Stok fisik sekarang ${onHand ?? "—"}.` };
 }

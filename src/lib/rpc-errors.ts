@@ -18,7 +18,6 @@ const MESSAGES: Record<string, string> = {
   PESANAN_TIDAK_AKTIF: "Pesanan ini sudah tidak aktif.",
   PESANAN_DIBATALKAN: "Pesanan ini sudah dibatalkan, pembayarannya tidak bisa diverifikasi.",
   PEMBAYARAN_TIDAK_DITEMUKAN: "Pembayaran tidak ditemukan.",
-  METODE_PEMBAYARAN_TIDAK_VALID: "Metode pembayaran tidak valid.",
   STATUS_PEMBAYARAN_TIDAK_VALID: "Status pembayaran ini sudah berubah. Muat ulang halaman.",
   NOMINAL_TIDAK_SESUAI: "Nominal tidak sama dengan tagihan",
   REFERENSI_WAJIB: "Nomor referensi mutasi wajib diisi.",
@@ -34,6 +33,13 @@ const MESSAGES: Record<string, string> = {
   PENGGUNA_TIDAK_DITEMUKAN: "Pengguna tidak ditemukan.",
   TIDAK_BISA_RESET_AKUN_SENDIRI: "Untuk akunmu sendiri, gunakan \"Lupa password\" di halaman masuk.",
   PASSWORD_TIDAK_VALID: "Password tidak valid (minimal 8 karakter).",
+  TANGGAL_KEDALUWARSA_WAJIB: "Tanggal kedaluwarsa wajib diisi untuk setiap stok yang masuk.",
+  TANGGAL_KEDALUWARSA_TIDAK_VALID: "Tanggal kedaluwarsa stok yang masuk tidak boleh sudah lewat.",
+  TANGGAL_TIDAK_BERUBAH: "Tanggal kedaluwarsa sama dengan yang sudah tersimpan.",
+  BATCH_TIDAK_DITEMUKAN: "Batch tidak ditemukan.",
+  JUMLAH_BATCH_TIDAK_VALID: "Jumlah tidak valid, melebihi sisa batch",
+  KODE_BATCH_SUDAH_ADA: "Kode batch sudah dipakai untuk produk ini",
+  STOK_BATCH_TIDAK_SINKRON: "Jumlah batch tidak sama dengan stok produk. Perubahan dibatalkan, hubungi pengembang",
   RENTANG_TANGGAL_TIDAK_VALID: "Rentang tanggal tidak valid (maksimal 366 hari).",
 };
 

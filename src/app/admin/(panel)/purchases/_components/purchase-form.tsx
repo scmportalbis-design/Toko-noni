@@ -5,7 +5,7 @@ import { createPurchase } from "../actions";
 import { Field, FormMessage, SubmitButton, inputClass } from "@/components/admin/form-ui";
 import { rupiah } from "@/lib/format";
 
-type Row = { key: number; productId: string; qty: string; cost: string };
+type Row = { key: number; productId: string; qty: string; cost: string; expiry: string; batchCode: string };
 const digits = (s: string) => Number(s.replace(/\D/g, "")) || 0;
 
 export function PurchaseForm({
@@ -17,11 +17,14 @@ export function PurchaseForm({
 }) {
   const [state, action] = useActionState(createPurchase, null);
   const counter = useRef(1);
-  const [rows, setRows] = useState<Row[]>([{ key: 0, productId: "", qty: "1", cost: "" }]);
+  const [rows, setRows] = useState<Row[]>([{ key: 0, productId: "", qty: "1", cost: "", expiry: "", batchCode: "" }]);
   const e = state?.errors ?? {};
 
   const update = (key: number, patch: Partial<Row>) => setRows((r) => r.map((x) => (x.key === key ? { ...x, ...patch } : x)));
-  const items = rows.filter((r) => r.productId).map((r) => ({ product_id: r.productId, qty: digits(r.qty), unit_cost: digits(r.cost) }));
+  const items = rows.filter((r) => r.productId).map((r) => ({
+    product_id: r.productId, qty: digits(r.qty), unit_cost: digits(r.cost),
+    expiry_date: r.expiry, batch_code: r.batchCode.trim() || null,
+  }));
   const total = items.reduce((n, i) => n + i.qty * i.unit_cost, 0);
 
   return (
@@ -51,15 +54,26 @@ export function PurchaseForm({
               <input aria-label="Jumlah" inputMode="numeric" placeholder="Jumlah" value={r.qty} onChange={(ev) => update(r.key, { qty: ev.target.value })} className={inputClass} />
               <input aria-label="Harga beli satuan (Rp)" inputMode="numeric" placeholder="Harga beli /satuan" value={r.cost} onChange={(ev) => update(r.key, { cost: ev.target.value })} className={inputClass} />
             </div>
+            <label className="block space-y-1 text-sm">
+              <span className="font-medium">Tanggal kedaluwarsa <span className="text-red-600">*</span></span>
+              <input type="date" required min={today} aria-label={`Tanggal kedaluwarsa baris ${idx + 1}`} value={r.expiry}
+                onChange={(ev) => update(r.key, { expiry: ev.target.value })} className={inputClass} />
+            </label>
+            <input aria-label="Kode batch dari pemasok (opsional)" placeholder="Kode batch pemasok (opsional)" maxLength={60}
+              value={r.batchCode} onChange={(ev) => update(r.key, { batchCode: ev.target.value })} className={inputClass} />
             {rows.length > 1 ? (
               <button type="button" onClick={() => setRows((x) => x.filter((y) => y.key !== r.key))} className="min-h-11 text-sm text-red-700">Hapus baris</button>
             ) : null}
           </div>
         ))}
-        <button type="button" onClick={() => setRows((x) => [...x, { key: counter.current++, productId: "", qty: "1", cost: "" }])}
+        <button type="button" onClick={() => setRows((x) => [...x, { key: counter.current++, productId: "", qty: "1", cost: "", expiry: "", batchCode: "" }])}
           className="min-h-11 w-full rounded-lg border border-dashed border-slate-300 text-sm font-medium text-slate-700">
           + Tambah barang
         </button>
+        <p className="text-xs text-slate-500">
+          Satu baris = satu batch. Barang yang sama dengan tanggal kedaluwarsa berbeda? Tambahkan baris lagi.
+          Barang yang masuk lebih dulu akan keluar lebih dulu (FIFO).
+        </p>
         {e.items ? <p role="alert" className="text-sm text-red-600">{e.items}</p> : null}
         <p className="text-right text-sm">Total: <span className="font-semibold">{rupiah(total)}</span></p>
       </div>

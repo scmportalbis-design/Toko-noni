@@ -11,6 +11,7 @@ const ITEMS = [
   { href: "/admin/products", label: "Produk" },
   { href: "/admin/categories", label: "Kategori" },
   { href: "/admin/stock", label: "Stok" },
+  { href: "/admin/batches", label: "Batch & Kedaluwarsa", ownerOnly: true },
   { href: "/admin/suppliers", label: "Pemasok", ownerOnly: true },
   { href: "/admin/purchases", label: "Pembelian", ownerOnly: true },
   { href: "/admin/reports", label: "Laporan", ownerOnly: true },

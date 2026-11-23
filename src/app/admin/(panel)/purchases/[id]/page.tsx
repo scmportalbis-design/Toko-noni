@@ -4,10 +4,11 @@ import { createClient } from "@/lib/supabase/server";
 import { getStaff } from "@/lib/auth";
 import { isUuid, one, rupiah } from "@/lib/format";
 import { formatDateTime } from "@/lib/dates";
+import { formatYmd } from "@/lib/batch";
 import { Badge } from "@/components/admin/badge";
 import { PurchaseActions } from "../_components/purchase-actions";
 
-type Item = { id: string; qty: number; unit_cost: number; products: { name: string } | { name: string }[] | null };
+type Item = { id: string; qty: number; unit_cost: number; expiry_date: string | null; batch_code: string | null; products: { name: string } | { name: string }[] | null };
 const LABEL: Record<string, string> = { draft: "Draf", received: "Diterima", cancelled: "Dibatalkan" };
 
 export default async function PurchaseDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -18,7 +19,7 @@ export default async function PurchaseDetailPage({ params }: { params: Promise<{
   const supabase = await createClient();
   const [pRes, iRes] = await Promise.all([
     supabase.from("purchases").select("id, status, purchase_date, note, received_at, suppliers(name)").eq("id", id).maybeSingle(),
-    supabase.from("purchase_items").select("id, qty, unit_cost, products(name)").eq("purchase_id", id),
+    supabase.from("purchase_items").select("id, qty, unit_cost, expiry_date, batch_code, products(name)").eq("purchase_id", id),
   ]);
   const p = pRes.data as unknown as { id: string; status: string; purchase_date: string; note: string | null; received_at: string | null; suppliers: { name: string } | { name: string }[] | null } | null;
   if (!p) notFound();
@@ -40,7 +41,13 @@ export default async function PurchaseDetailPage({ params }: { params: Promise<{
         <ul className="space-y-1 text-sm">
           {items.map((i) => (
             <li key={i.id} className="flex justify-between gap-3">
-              <span>{one(i.products)?.name} × {i.qty} <span className="text-slate-400">@ {rupiah(i.unit_cost)}</span></span>
+              <span>
+                {one(i.products)?.name} × {i.qty} <span className="text-slate-400">@ {rupiah(i.unit_cost)}</span>
+                <span className="block text-xs text-slate-500">
+                  {i.expiry_date ? `Kedaluwarsa ${formatYmd(i.expiry_date)}` : "Tanggal kedaluwarsa belum diisi (draf lama, buat ulang)"}
+                  {i.batch_code ? ` · batch ${i.batch_code}` : ""}
+                </span>
+              </span>
               <span>{rupiah(i.qty * i.unit_cost)}</span>
             </li>
           ))}

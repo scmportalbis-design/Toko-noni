@@ -5,13 +5,15 @@ import { getStaff } from "@/lib/auth";
 import { rupiah } from "@/lib/format";
 import { addDays, firstOfMonth, isYmd, todayJakarta } from "@/lib/dates";
 import { rpcMessage } from "@/lib/rpc-errors";
-import { buttonClass, inputClass } from "@/components/admin/form-ui";
+import { buttonClass, inputClass } from "@/lib/admin-styles";
 
 type SP = Promise<{ from?: string; to?: string }>;
 type Summary = {
   orders_created: number; orders_created_value: number; orders_cancelled: number; orders_unpaid_open: number;
   verified_count: number; verified_total: number; items_sold: number;
   revenue_with_cost: number; cogs: number; items_missing_cost: number;
+  // Ada setelah migrasi batch; dianggap 0 bila belum dijalankan.
+  writeoff_loss?: number; writeoff_loss_qty?: number; writeoff_system_qty?: number;
   daily: { date: string; count: number; total: number }[];
   top_products: { name: string; qty: number; revenue: number }[];
 };
@@ -39,6 +41,8 @@ async function Report({ searchParams }: { searchParams: SP }) {
   const s = data as Summary | null;
 
   const grossProfit = s ? s.revenue_with_cost - s.cogs : 0;
+  const writeoffLoss = s?.writeoff_loss ?? 0;
+  const netProfit = grossProfit - writeoffLoss;
   const margin = s && s.revenue_with_cost > 0 ? (grossProfit / s.revenue_with_cost) * 100 : 0;
   const maxDaily = s ? Math.max(1, ...s.daily.map((d) => d.total)) : 1;
 
@@ -61,7 +65,7 @@ async function Report({ searchParams }: { searchParams: SP }) {
       ) : (
         <>
           <p className="rounded-lg bg-slate-100 p-3 text-xs text-slate-600">
-            Tiga angka di bawah <strong>berbeda</strong>: pesanan masuk (belum tentu dibayar), uang masuk terverifikasi, dan laba kotor.
+            Angka di bawah <strong>berbeda</strong>: pesanan masuk (belum tentu dibayar), uang masuk terverifikasi, laba kotor, dan kerugian pembuangan batch.
             Jangan dicampur.
           </p>
 
@@ -96,6 +100,20 @@ async function Report({ searchParams }: { searchParams: SP }) {
               </p>
             ) : null}
             <p className="text-xs text-slate-500">Belum memperhitungkan biaya operasional, diskon di luar harga, atau refund.</p>
+          </section>
+
+          <section className="space-y-2 rounded-xl border border-slate-200 bg-white p-4">
+            <h2 className="text-base font-semibold">4. Kerugian pembuangan batch</h2>
+            <dl className="grid grid-cols-2 gap-3 text-sm">
+              <div><dt className="text-slate-500">Kerugian dihitung</dt><dd className="text-xl font-semibold">{rupiah(writeoffLoss)}</dd></div>
+              <div><dt className="text-slate-500">Laba setelah kerugian</dt><dd className="text-xl font-semibold">{rupiah(netProfit)}</dd></div>
+              <div><dt className="text-slate-500">Jumlah dibuang (dihitung rugi)</dt><dd className="font-semibold">{s.writeoff_loss_qty ?? 0}</dd></div>
+              <div><dt className="text-slate-500">Keluar dari sistem saja</dt><dd className="font-semibold">{s.writeoff_system_qty ?? 0}</dd></div>
+            </dl>
+            <p className="text-xs text-slate-500">
+              Kerugian = jumlah dibuang × harga pokok batch. Pembuangan yang dipilih &ldquo;keluar dari sistem saja&rdquo; tidak dihitung.
+              Harga pokok penjualan (HPP) di bagian 3 tetap memakai harga pokok terakhir produk.
+            </p>
           </section>
 
           <section className="space-y-2 rounded-xl border border-slate-200 bg-white p-4">

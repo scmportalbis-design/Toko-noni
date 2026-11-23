@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getStaff, OWNER_ONLY_MESSAGE } from "@/lib/auth";
 import { snapshot, str } from "@/lib/form-data";
 import { isUuid } from "@/lib/format";
+import { isYmd, todayJakarta } from "@/lib/dates";
 import { rpcMessage } from "@/lib/rpc-errors";
 import { fieldErrors } from "@/lib/validators/catalog";
 import { purchaseSchema } from "@/lib/validators/purchasing";
@@ -24,6 +25,15 @@ export async function createPurchase(_prev: ActionState, fd: FormData): Promise<
   }
   if (Array.isArray(items) && items.some((i) => !i || !(i.qty >= 1) || !(i.unit_cost >= 0))) {
     return { ok: false, errors: { items: "Isi jumlah (minimal 1) dan harga beli setiap barang." }, values };
+  }
+  if (Array.isArray(items)) {
+    const today = todayJakarta();
+    if (items.some((i) => !isYmd(i?.expiry_date))) {
+      return { ok: false, errors: { items: "Isi tanggal kedaluwarsa untuk setiap barang." }, values };
+    }
+    if (items.some((i) => i.expiry_date < today)) {
+      return { ok: false, errors: { items: "Tanggal kedaluwarsa barang yang masuk tidak boleh sudah lewat." }, values };
+    }
   }
 
   const parsed = purchaseSchema.safeParse({
@@ -45,7 +55,7 @@ export async function createPurchase(_prev: ActionState, fd: FormData): Promise<
 
   const { error: itemsErr } = await supabase
     .from("purchase_items")
-    .insert(d.items.map((i) => ({ ...i, purchase_id: p.id })));
+    .insert(d.items.map((i) => ({ ...i, batch_code: i.batch_code || null, purchase_id: p.id })));
   if (itemsErr) {
     await supabase.from("purchases").delete().eq("id", p.id); // jangan tinggalkan draf kosong
     return { ok: false, message: "Gagal menyimpan barang pembelian. Coba lagi.", values };
@@ -64,7 +74,8 @@ export async function receivePurchase(_prev: ActionState, fd: FormData): Promise
   revalidatePath("/admin/purchases");
   revalidatePath(`/admin/purchases/${id}`);
   revalidatePath("/admin/stock");
-  return { ok: true, message: "Barang diterima. Stok sudah bertambah." };
+  revalidatePath("/admin/batches");
+  return { ok: true, message: "Barang diterima. Stok bertambah dan setiap baris tercatat sebagai batch." };
 }
 
 export async function cancelPurchase(_prev: ActionState, fd: FormData): Promise<ActionState> {
